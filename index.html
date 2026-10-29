@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ferro — acompanhamento de treino</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0F1115">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ferro">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root{
+    --ink:#0F1115;
+    --steel:#181C23;
+    --steel-2:#242A34;
+    --steel-3:#2F3640;
+    --chalk:#ECEDEF;
+    --mute:#8B92A0;
+    --effort:#FF5A36;
+    --effort-dim:#4A2A20;
+    --recover:#34D8C7;
+    --recover-dim:#1B3936;
+    --prepare:#F2C230;
+    --danger:#E4572E;
+    --radius-s:6px;
+    --radius-m:10px;
+    --radius-l:18px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--chalk);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #app{
+    max-width:480px;
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    background:linear-gradient(180deg,var(--ink) 0%,#0C0E12 100%);
+  }
+  header.top{
+    padding:calc(22px + env(safe-area-inset-top)) 20px 14px;
+    border-bottom:1px solid var(--steel-2);
+  }
+  header.top h1{
+    margin:0;
+    font-size:22px;
+    font-weight:800;
+    letter-spacing:-0.02em;
+  }
+  header.top h1 span{color:var(--effort);}
+  header.top p{margin:4px 0 0;color:var(--mute);font-size:13px;}
+
+  main{flex:1;padding:18px 16px 90px;overflow-y:auto;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  /* ---- Botoes ---- */
+  button{font-family:inherit;}
+  .btn{
+    appearance:none;border:none;cursor:pointer;
+    border-radius:var(--radius-m);
+    padding:13px 18px;
+    font-size:15px;
+    font-weight:700;
+    color:var(--chalk);
+    background:var(--steel-3);
+    transition:transform .08s ease, background .15s ease;
+  }
+  .btn:active{transform:scale(0.97);}
+  .btn.primary{background:var(--effort);color:#1A0D08;}
+  .btn.recover{background:var(--recover);color:#052320;}
+  .btn.ghost{background:transparent;border:1px solid var(--steel-3);color:var(--mute);}
+  .btn.small{padding:8px 12px;font-size:13px;border-radius:var(--radius-s);}
+  .btn.block{width:100%;}
+  .btn.danger{background:var(--danger);color:#2A0C02;}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+
+  /* ---- Config: seletor de plano ---- */
+  .plan-row{display:flex;gap:8px;margin:14px 0 20px;flex-wrap:wrap;}
+  .plan-chip{
+    flex:1 1 auto;min-width:78px;text-align:center;
+    padding:12px 8px;border-radius:var(--radius-m);
+    border:1.5px solid var(--steel-3);background:var(--steel);
+    cursor:pointer;
+  }
+  .plan-chip b{display:block;font-size:16px;letter-spacing:.04em;}
+  .plan-chip span{display:block;font-size:11px;color:var(--mute);margin-top:2px;}
+  .plan-chip.active{border-color:var(--effort);background:var(--effort-dim);}
+  .plan-chip.active b{color:var(--effort);}
+
+  h2.section-title{
+    font-size:14px;color:var(--mute);font-weight:700;
+    margin:22px 0 10px;text-transform:none;
+  }
+
+  .group-card{
+    background:var(--steel);
+    border:1px solid var(--steel-2);
+    border-radius:var(--radius-l);
+    margin-bottom:12px;
+    overflow:hidden;
+  }
+  .group-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;cursor:pointer;
+  }
+  .group-head .letter{
+    width:38px;height:38px;border-radius:50%;
+    background:var(--steel-3);color:var(--chalk);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:16px;margin-right:12px;flex-shrink:0;
+  }
+  .group-head .meta{flex:1;}
+  .group-head .meta .name{font-weight:700;font-size:15px;}
+  .group-head .meta .count{color:var(--mute);font-size:12px;margin-top:2px;}
+  .group-head .chev{color:var(--mute);transition:transform .2s ease;}
+  .group-card.open .chev{transform:rotate(90deg);}
+  .group-flex{display:flex;align-items:center;flex:1;}
+
+  .group-body{display:none;padding:0 16px 16px;}
+  .group-card.open .group-body{display:block;}
+
+  .ex-row{
+    display:flex;align-items:center;gap:10px;
+    background:var(--steel-2);border-radius:var(--radius-m);
+    padding:10px 12px;margin-bottom:8px;
+  }
+  .ex-row .ex-info{flex:1;}
+  .ex-row .ex-info .n{font-weight:700;font-size:14px;}
+  .ex-row .ex-info .d{color:var(--mute);font-size:12px;margin-top:2px;}
+  .ex-row .ex-actions{display:flex;gap:6px;}
+  .icon-btn{
+    background:transparent;border:none;color:var(--mute);
+    cursor:pointer;padding:6px;border-radius:6px;font-size:15px;line-height:1;
+  }
+  .icon-btn:active{background:var(--steel-3);}
+  .icon-btn.warn{color:var(--danger);}
+
+  .empty-hint{color:var(--mute);font-size:13px;padding:10px 2px;}
+
+  form.ex-form{
+    background:var(--steel-2);border-radius:var(--radius-m);
+    padding:12px;margin-top:6px;
+  }
+  .field-row{display:flex;gap:8px;margin-bottom:8px;}
+  .field{flex:1;display:flex;flex-direction:column;gap:4px;}
+  .field label{font-size:11px;color:var(--mute);}
+  .field input{
+    background:var(--steel);border:1px solid var(--steel-3);
+    border-radius:var(--radius-s);color:var(--chalk);
+    padding:9px 10px;font-size:14px;width:100%;
+  }
+  .field input:focus{outline:none;border-color:var(--effort);}
+  .form-actions{display:flex;gap:8px;margin-top:4px;}
+
+  input[type=text]::placeholder{color:#54606f;}
+
+  .rename-input{
+    background:transparent;border:none;border-bottom:1px dashed var(--steel-3);
+    color:var(--chalk);font-weight:700;font-size:15px;width:100%;padding:2px 0;
+  }
+  .rename-input:focus{outline:none;border-bottom-color:var(--effort);}
+
+  /* ---- Treino: cards de inicio ---- */
+  .start-card{
+    background:var(--steel);border:1px solid var(--steel-2);
+    border-radius:var(--radius-l);padding:16px;margin-bottom:12px;
+    display:flex;align-items:center;gap:14px;
+  }
+  .start-card .letter{
+    width:46px;height:46px;border-radius:50%;
+    background:var(--steel-3);display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:18px;flex-shrink:0;
+  }
+  .start-card .info{flex:1;}
+  .start-card .info .name{font-weight:700;font-size:16px;}
+  .start-card .info .sub{color:var(--mute);font-size:12px;margin-top:3px;}
+
+  /* ---- Historico ---- */
+  .hist-item{
+    display:flex;align-items:center;gap:12px;
+    padding:12px 4px;border-bottom:1px solid var(--steel-2);
+  }
+  .hist-item .letter{
+    width:34px;height:34px;border-radius:50%;background:var(--steel-3);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;
+  }
+  .hist-item .info{flex:1;}
+  .hist-item .info .date{font-weight:700;font-size:14px;}
+  .hist-item .info .breakdown{color:var(--mute);font-size:12px;margin-top:2px;}
+  .hist-item .total{font-weight:800;font-size:15px;color:var(--effort);}
+  .hist-summary{
+    display:flex;justify-content:space-between;background:var(--steel);
+    border:1px solid var(--steel-2);border-radius:var(--radius-l);
+    padding:16px;margin-bottom:14px;
+  }
+  .hist-summary .box{text-align:center;flex:1;}
+  .hist-summary .box b{display:block;font-size:20px;font-weight:800;}
+  .hist-summary .box span{color:var(--mute);font-size:11px;}
+
+  /* ---- Nav inferior ---- */
+  nav.tabbar{
+    position:sticky;bottom:0;left:0;right:0;
+    display:flex;
+    background:rgba(15,17,21,0.92);
+    backdrop-filter:blur(10px);
+    border-top:1px solid var(--steel-2);
+    max-width:480px;margin:0 auto;width:100%;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  nav.tabbar button{
+    flex:1;background:transparent;border:none;color:var(--mute);
+    padding:12px 4px 10px;display:flex;flex-direction:column;align-items:center;gap:4px;
+    cursor:pointer;font-size:11px;font-weight:600;
+  }
+  nav.tabbar button.active{color:var(--effort);}
+  nav.tabbar .dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0;}
+  nav.tabbar button.active .dot{opacity:1;}
+
+  /* ---- Tela de treino (overlay) ---- */
+  #workout-overlay{
+    position:fixed;inset:0;background:var(--ink);
+    display:none;flex-direction:column;z-index:50;
+    max-width:480px;margin:0 auto;
+  }
+  #workout-overlay.active{display:flex;}
+  .wo-top{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:calc(18px + env(safe-area-inset-top)) 20px 6px;
+  }
+  .wo-top .group-tag{color:var(--mute);font-size:13px;font-weight:700;}
+  .wo-close{background:none;border:none;color:var(--mute);font-size:22px;cursor:pointer;padding:4px 8px;}
+
+  .wo-center{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:10px 24px;text-align:center;
+  }
+  .wo-phase-label{
+    font-size:13px;font-weight:700;letter-spacing:.03em;
+    color:var(--mute);margin-bottom:6px;
+  }
+  .wo-exercise-name{
+    font-size:22px;font-weight:800;margin-bottom:26px;min-height:30px;
+    max-width:320px;
+  }
+  .ring-wrap{position:relative;width:250px;height:250px;}
+  .ring-wrap svg{transform:rotate(-90deg);width:100%;height:100%;}
+  .ring-bg{fill:none;stroke:var(--steel-2);stroke-width:12;}
+  .ring-fg{fill:none;stroke:var(--effort);stroke-width:12;stroke-linecap:round;transition:stroke .3s ease;}
+  .ring-fg.rest{stroke:var(--recover);}
+  .ring-fg.prepare{stroke:var(--prepare);}
+  .ring-center{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+  }
+  .ring-time{font-size:52px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;}
+  .ring-sub{color:var(--mute);font-size:13px;margin-top:2px;}
+
+  .wo-next{margin-top:22px;color:var(--mute);font-size:13px;min-height:18px;}
+
+  .wo-controls{
+    display:flex;flex-wrap:wrap;gap:10px;padding:18px 20px 28px;
+  }
+  .wo-controls .btn{flex:1 1 28%;}
+  .wo-controls #wo-stop{flex:1 1 100%;}
+  .wo-total{
+    font-size:13px;font-weight:700;color:var(--mute);
+    font-variant-numeric:tabular-nums;white-space:nowrap;
+  }
+  .wo-total b{color:var(--chalk);font-size:15px;}
+
+  .wo-progress-dots{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;margin-top:20px;max-width:280px;}
+  .wo-progress-dots .d{width:7px;height:7px;border-radius:50%;background:var(--steel-3);}
+  .wo-progress-dots .d.done{background:var(--effort);}
+  .wo-progress-dots .d.rest-done{background:var(--recover);}
+
+  /* Fim de treino */
+  .wo-finish{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:24px;text-align:center;
+  }
+  .wo-finish .big-check{
+    width:84px;height:84px;border-radius:50%;background:var(--effort-dim);
+    display:flex;align-items:center;justify-content:center;margin-bottom:18px;
+  }
+  .wo-finish .big-check svg{width:40px;height:40px;stroke:var(--effort);}
+  .wo-finish h2{margin:0 0 4px;font-size:22px;font-weight:800;}
+  .wo-finish p{color:var(--mute);margin:0 0 22px;font-size:13px;}
+  .wo-finish .stats{display:flex;gap:10px;width:100%;max-width:320px;margin-bottom:26px;}
+  .wo-finish .stats .box{
+    flex:1;background:var(--steel);border:1px solid var(--steel-2);
+    border-radius:var(--radius-m);padding:14px 8px;
+  }
+  .wo-finish .stats .box b{display:block;font-size:19px;font-weight:800;}
+  .wo-finish .stats .box span{color:var(--mute);font-size:11px;}
+
+  .toast{
+    position:fixed;left:50%;bottom:100px;transform:translateX(-50%);
+    background:var(--steel-3);color:var(--chalk);padding:10px 16px;
+    border-radius:20px;font-size:13px;font-weight:600;z-index:80;
+    opacity:0;transition:opacity .25s ease;pointer-events:none;
+  }
+  .toast.show{opacity:1;}
+
+  /* Aviso de início de fase */
+  .wo-banner{
+    position:absolute;left:16px;right:16px;top:64px;z-index:60;
+    border-radius:var(--radius-l);padding:14px 16px;text-align:center;
+    opacity:0;transform:translateY(-12px);pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+    box-shadow:0 8px 24px rgba(0,0,0,.45);
+  }
+  .wo-banner.show{opacity:1;transform:translateY(0);}
+  .wo-banner .b1{font-size:13px;font-weight:800;letter-spacing:.04em;}
+  .wo-banner .b2{font-size:20px;font-weight:800;margin-top:3px;}
+  .wo-banner.series{background:var(--effort);color:#1A0D08;}
+  .wo-banner.rest{background:var(--recover);color:#052320;}
+  .wo-banner.prepare{background:var(--prepare);color:#241A00;}
+  .voice-toggle{margin-top:14px;}
+
+  ::-webkit-scrollbar{width:0;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="top">
+    <h1>Ferro<span>.</span></h1>
+    <p id="header-sub">Monte seus grupos, registre os exercícios e treine no ritmo certo.</p>
+  </header>
+
+  <main>
+    <!-- ============ CONFIGURAR ============ -->
+    <section class="view" id="view-config">
+      <h2 class="section-title">Quantos treinos por semana?</h2>
+      <div class="plan-row" id="plan-row"></div>
+
+      <h2 class="section-title">Seus grupos</h2>
+      <div id="groups-list"></div>
+    </section>
+
+    <!-- ============ TREINO ============ -->
+    <section class="view" id="view-treino">
+      <h2 class="section-title">Módulos</h2>
+      <div id="module-list"></div>
+
+      <h2 class="section-title">Escolha o grupo de hoje</h2>
+      <div id="start-list"></div>
+    </section>
+
+    <!-- ============ HISTORICO ============ -->
+    <section class="view" id="view-historico">
+      <h2 class="section-title">Últimos 30 dias</h2>
+      <div class="hist-summary" id="hist-summary"></div>
+      <div id="hist-list"></div>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button data-tab="config" class="active"><span>Configurar</span><span class="dot"></span></button>
+    <button data-tab="treino"><span>Treino</span><span class="dot"></span></button>
+    <button data-tab="historico"><span>Histórico</span><span class="dot"></span></button>
+  </nav>
+
+  <!-- ============ OVERLAY DE TREINO ============ -->
+  <div id="workout-overlay">
+    <div class="wo-top">
+      <div class="group-tag" id="wo-group-tag">Grupo A</div>
+      <div class="wo-total" title="Tempo total de treino">⏱ <b id="wo-total-time">0:00</b><span id="wo-total-plan"> / 0:00</span></div>
+      <button class="wo-close" id="wo-close">✕</button>
+    </div>
+
+    <div class="wo-banner" id="wo-banner"><div class="b1" id="wo-banner-1"></div><div class="b2" id="wo-banner-2"></div></div>
+
+    <div class="wo-center" id="wo-running">
+      <div class="wo-phase-label" id="wo-phase-label">PREPARE-SE</div>
+      <div class="wo-exercise-name" id="wo-exercise-name">O treino começa em instantes</div>
+
+      <div class="ring-wrap">
+        <svg viewBox="0 0 250 250">
+          <circle class="ring-bg" cx="125" cy="125" r="108"></circle>
+          <circle class="ring-fg prepare" id="ring-fg" cx="125" cy="125" r="108"
+                  stroke-dasharray="678.6" stroke-dashoffset="0"></circle>
+        </svg>
+        <div class="ring-center">
+          <div class="ring-time" id="ring-time">1:00</div>
+          <div class="ring-sub" id="ring-sub">preparação</div>
+        </div>
+      </div>
+
+      <div class="wo-next" id="wo-next"></div>
+      <div class="wo-progress-dots" id="wo-dots"></div>
+      <button class="btn ghost small voice-toggle" id="wo-voice">🔇 Voz: desligada</button>
+    </div>
+
+    <div class="wo-controls">
+      <button class="btn ghost" id="wo-back">‹ Voltar</button>
+      <button class="btn ghost" id="wo-pause">Pausar</button>
+      <button class="btn ghost" id="wo-next-btn">Avançar ›</button>
+      <button class="btn danger" id="wo-stop">Encerrar</button>
+    </div>
+
+    <div class="wo-finish" id="wo-finish" style="display:none;">
+      <div class="big-check">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      </div>
+      <h2>Treino finalizado</h2>
+      <p id="wo-finish-sub">Grupo A concluído</p>
+      <div class="stats">
+        <div class="box"><b id="fin-series">0:00</b><span>séries</span></div>
+        <div class="box"><b id="fin-rest">0:00</b><span>descanso</span></div>
+        <div class="box"><b id="fin-total">0:00</b><span>total</span></div>
+      </div>
+      <button class="btn primary block" id="wo-done">Concluir</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+if('serviceWorker' in navigator && location.protocol !== 'file:'){
+  window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+}
+</script>
+<script>
+(function(){
+  "use strict";
+
+  /* =================== ESTADO / PERSISTENCIA =================== */
+  var LETTERS = ['A','B','C','D','E','F'];
+  var STORAGE_KEY = 'ferro_groups_v1';
+  var HISTORY_KEY = 'ferro_history_v1';
+
+  // Padrão atual de todos os exercícios: 5 séries de 30s com 1 min de descanso.
+  var DEFAULT_SERIES = 5, DEFAULT_SERIES_TIME = 30, DEFAULT_REST_TIME = 60;
+  // Ajuste único dos exercícios já salvos no aparelho para o novo padrão.
+  // Depois de aplicado, edições feitas pelo usuário continuam valendo.
+  var MIGRATION_KEY = 'ferro_migr_5x30_v1';
+
+  function loadGroups(){
+    var groups = null;
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw) groups = JSON.parse(raw);
+    }catch(e){}
+    if(!groups) groups = defaultGroups();
+    try{
+      if(localStorage.getItem(MIGRATION_KEY) !== '1'){
+        groups.forEach(function(g){
+          g.exercises.forEach(function(ex){
+            ex.series = DEFAULT_SERIES;
+            ex.seriesTime = DEFAULT_SERIES_TIME;
+            ex.restTime = DEFAULT_REST_TIME;
+          });
+        });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
+        localStorage.setItem(MIGRATION_KEY, '1');
+      }
+    }catch(e){}
+    return groups;
+  }
+
+  function defaultGroups(){
+    function mk(id, name, names){
+      return {
+        id: id,
+        name: name,
+        exercises: names.map(function(n, i){
+          return { id: 'ex-'+id.toLowerCase()+(i+1), name: n, series: DEFAULT_SERIES, seriesTime: DEFAULT_SERIES_TIME, restTime: DEFAULT_REST_TIME };
+        })
+      };
+    }
+    return [
+      mk('A', 'Costas + Ombro + Quadril', ['Puxada alta aberta','Remada baixa triângulo','Remada alta','Desenvolvimento','Elevação lateral','Cadeira abdutora']),
+      mk('B', 'Peito + Tríceps + Panturrilha', ['Supino reto','Crucifixo inclinado','Cross over polia','Tríceps testa','Tríceps na polia','Gêmeos']),
+      mk('C', 'Costas + Bíceps + Quadril', ['Puxada triângulo','Pulldown corda','Remada cavalinho','Rosca direta','Rosca Scott','Cadeira adutora']),
+      mk('D', 'Pernas + Peito + Ombro', ['Agachamento','Supino inclinado','Leg press 45°','Crucifixo','Elevação frontal','Crucifixo inverso']),
+      mk('E', 'Pernas + Bíceps + Tríceps + Panturrilha', ['Mesa flexora','Cadeira extensora','Rosca martelo','Rosca 45°','Tríceps francês','Panturrilha sentado'])
+    ];
+  }
+  function saveGroups(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state.groups)); }
+
+  function loadHistory(){
+    try{
+      var raw = localStorage.getItem(HISTORY_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return [];
+  }
+  function saveHistory(){ localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history)); }
+
+  var state = {
+    groups: loadGroups(),
+    history: loadHistory(),
+    openGroupId: null,
+    editingExercise: null // {groupId, exId|null}
+  };
+
+  var uid = function(){ return Math.random().toString(36).slice(2,9); };
+
+  /* =================== HELPERS =================== */
+  function fmtTime(totalSeconds){
+    totalSeconds = Math.max(0, Math.round(totalSeconds));
+    var m = Math.floor(totalSeconds/60), s = totalSeconds%60;
+    return m + ':' + (s<10?'0':'') + s;
+  }
+  function fmtDatePt(iso){
+    var parts = iso.split('-');
+    var d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+    var dias = ['dom','seg','ter','qua','qui','sex','sáb'];
+    return d.getDate() + '/' + (d.getMonth()+1) + ' · ' + dias[d.getDay()];
+  }
+  function todayISO(){
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function showToast(msg){
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(showToast._h);
+    showToast._h = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+  }
+
+  /* =================== NAV =================== */
+  var tabs = document.querySelectorAll('nav.tabbar button');
+  var views = {
+    config: document.getElementById('view-config'),
+    treino: document.getElementById('view-treino'),
+    historico: document.getElementById('view-historico')
+  };
+  var headerSubs = {
+    config: 'Monte seus grupos, registre os exercícios e treine no ritmo certo.',
+    treino: 'Ative o grupo de hoje e siga o cronômetro.',
+    historico: 'Seu progresso nos últimos 30 dias.'
+  };
+  function goTab(name){
+    tabs.forEach(function(b){ b.classList.toggle('active', b.dataset.tab === name); });
+    Object.keys(views).forEach(function(k){ views[k].classList.toggle('active', k===name); });
+    document.getElementById('header-sub').textContent = headerSubs[name];
+    if(name==='treino'){ renderStartList(); renderModuleList(); }
+    if(name==='historico') renderHistory();
+  }
+  tabs.forEach(function(b){ b.addEventListener('click', function(){ goTab(b.dataset.tab); }); });
+  goTab('config');
+
+  /* =================== CONFIG: PLANO =================== */
+  var planSizes = [
+    {n:3,label:'ABC'}, {n:4,label:'ABCD'}, {n:5,label:'ABCDE'}
+  ];
+  function renderPlanRow(){
+    var wrap = document.getElementById('plan-row');
+    wrap.innerHTML = '';
+    planSizes.forEach(function(p){
+      var el = document.createElement('div');
+      el.className = 'plan-chip' + (state.groups.length===p.n ? ' active':'');
+      el.innerHTML = '<b>'+p.label+'</b><span>'+p.n+' treinos</span>';
+      el.addEventListener('click', function(){ setPlanSize(p.n); });
+      wrap.appendChild(el);
+    });
+  }
+  function setPlanSize(n){
+    var current = state.groups;
+    if(n === current.length) return;
+    if(n < current.length){
+      var removed = current.slice(n);
+      var hasData = removed.some(function(g){ return g.exercises.length>0; });
+      if(hasData && !confirm('Reduzir para '+n+' grupos vai apagar os exercícios de ' + removed.map(function(g){return g.name;}).join(', ') + '. Continuar?')){
+        return;
+      }
+      state.groups = current.slice(0,n);
+    } else {
+      for(var i=current.length;i<n;i++){
+        state.groups.push({ id: LETTERS[i], name: LETTERS[i], exercises: [] });
+      }
+    }
+    saveGroups();
+    renderPlanRow();
+    renderGroupsList();
+  }
+
+  /* =================== CONFIG: GRUPOS / EXERCICIOS =================== */
+  function renderGroupsList(){
+    var wrap = document.getElementById('groups-list');
+    wrap.innerHTML = '';
+    state.groups.forEach(function(g){
+      var card = document.createElement('div');
+      card.className = 'group-card' + (state.openGroupId===g.id ? ' open':'');
+
+      var head = document.createElement('div');
+      head.className = 'group-head';
+      head.innerHTML =
+        '<div class="group-flex">'+
+          '<div class="letter">'+g.id+'</div>'+
+          '<div class="meta">'+
+            '<div class="name">'+escapeHtml(g.name)+'</div>'+
+            '<div class="count">'+g.exercises.length+' exercício'+(g.exercises.length===1?'':'s')+'</div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="chev">›</div>';
+      head.addEventListener('click', function(){
+        state.openGroupId = (state.openGroupId===g.id) ? null : g.id;
+        renderGroupsList();
+      });
+      card.appendChild(head);
+
+      var body = document.createElement('div');
+      body.className = 'group-body';
+
+      // rename
+      var renameWrap = document.createElement('div');
+      renameWrap.style.marginBottom = '12px';
+      var renameInput = document.createElement('input');
+      renameInput.className = 'rename-input';
+      renameInput.value = g.name;
+      renameInput.placeholder = 'Nome do grupo (ex: Peito e tríceps)';
+      renameInput.addEventListener('change', function(){
+        g.name = renameInput.value.trim() || g.id;
+        saveGroups();
+        renderGroupsList();
+      });
+      renameWrap.appendChild(renameInput);
+      body.appendChild(renameWrap);
+
+      // exercises
+      if(g.exercises.length===0){
+        var hint = document.createElement('div');
+        hint.className='empty-hint';
+        hint.textContent = 'Nenhum exercício cadastrado ainda.';
+        body.appendChild(hint);
+      }
+      g.exercises.forEach(function(ex, idx){
+        var row = document.createElement('div');
+        row.className = 'ex-row';
+        row.innerHTML =
+          '<div class="ex-info"><div class="n">'+escapeHtml(ex.name)+'</div>'+
+          '<div class="d">'+ex.series+'x séries · '+fmtTime(ex.seriesTime)+' série · '+fmtTime(ex.restTime)+' descanso</div></div>'+
+          '<div class="ex-actions">'+
+            (idx>0?'<button class="icon-btn" data-act="up">↑</button>':'')+
+            (idx<g.exercises.length-1?'<button class="icon-btn" data-act="down">↓</button>':'')+
+            '<button class="icon-btn" data-act="edit">✎</button>'+
+            '<button class="icon-btn warn" data-act="del">✕</button>'+
+          '</div>';
+        row.querySelector('[data-act="edit"]').addEventListener('click', function(){
+          state.editingExercise = {groupId: g.id, exId: ex.id};
+          renderGroupsList();
+        });
+        row.querySelector('[data-act="del"]').addEventListener('click', function(){
+          if(confirm('Remover "'+ex.name+'"?')){
+            g.exercises = g.exercises.filter(function(e){ return e.id!==ex.id; });
+            saveGroups();
+            renderGroupsList();
+          }
+        });
+        var upBtn = row.querySelector('[data-act="up"]');
+        if(upBtn) upBtn.addEventListener('click', function(){
+          var tmp = g.exercises[idx-1]; g.exercises[idx-1]=g.exercises[idx]; g.exercises[idx]=tmp;
+          saveGroups(); renderGroupsList();
+        });
+        var downBtn = row.querySelector('[data-act="down"]');
+        if(downBtn) downBtn.addEventListener('click', function(){
+          var tmp = g.exercises[idx+1]; g.exercises[idx+1]=g.exercises[idx]; g.exercises[idx]=tmp;
+          saveGroups(); renderGroupsList();
+        });
+        body.appendChild(row);
+      });
+
+      // form (add / edit)
+      var editing = state.editingExercise && state.editingExercise.groupId===g.id ? state.editingExercise : null;
+      if(editing !== null || state.openGroupId===g.id){
+        body.appendChild(buildExerciseForm(g, editing));
+      }
+
+      card.appendChild(body);
+      wrap.appendChild(card);
+    });
+  }
+
+  function buildExerciseForm(group, editing){
+    var existing = editing ? group.exercises.find(function(e){return e.id===editing.exId;}) : null;
+    var form = document.createElement('form');
+    form.className = 'ex-form';
+    form.innerHTML =
+      '<div class="field-row">'+
+        '<div class="field"><label>Exercício</label><input type="text" name="name" placeholder="Ex: Supino inclinado" required></div>'+
+      '</div>'+
+      '<div class="field-row">'+
+        '<div class="field"><label>Séries</label><input type="number" name="series" min="1" max="20" placeholder="5" required></div>'+
+      '</div>'+
+      '<div class="field-row">'+
+        '<div class="field"><label>Duração da série (mm:ss)</label><input type="text" name="seriesTime" placeholder="0:30" required></div>'+
+        '<div class="field"><label>Descanso (mm:ss)</label><input type="text" name="restTime" placeholder="1:00" required></div>'+
+      '</div>'+
+      '<div class="form-actions">'+
+        '<button type="submit" class="btn primary small">'+(existing?'Salvar':'Adicionar')+'</button>'+
+        '<button type="button" class="btn ghost small" data-act="cancel">Cancelar</button>'+
+      '</div>';
+
+    if(existing){
+      form.name.value = existing.name;
+      form.series.value = existing.series;
+      form.seriesTime.value = fmtTime(existing.seriesTime);
+      form.restTime.value = fmtTime(existing.restTime);
+    }
+
+    form.querySelector('[data-act="cancel"]').addEventListener('click', function(){
+      state.editingExercise = null;
+      renderGroupsList();
+    });
+
+    form.addEventListener('submit', function(ev){
+      ev.preventDefault();
+      var name = form.name.value.trim();
+      var series = parseInt(form.series.value,10);
+      var seriesTime = parseMMSS(form.seriesTime.value);
+      var restTime = parseMMSS(form.restTime.value);
+      if(!name || !series || series<1 || seriesTime===null || restTime===null){
+        showToast('Verifique os campos (use mm:ss para os tempos).');
+        return;
+      }
+      if(existing){
+        existing.name=name; existing.series=series; existing.seriesTime=seriesTime; existing.restTime=restTime;
+      } else {
+        group.exercises.push({ id: uid(), name:name, series:series, seriesTime:seriesTime, restTime:restTime });
+      }
+      saveGroups();
+      state.editingExercise = null;
+      renderGroupsList();
+    });
+
+    return form;
+  }
+
+  function parseMMSS(v){
+    v = (v||'').trim();
+    if(!v) return null;
+    if(v.indexOf(':')>-1){
+      var parts = v.split(':');
+      var m = parseInt(parts[0],10), s = parseInt(parts[1],10);
+      if(isNaN(m)||isNaN(s)) return null;
+      return m*60+s;
+    }
+    var n = parseInt(v,10);
+    if(isNaN(n)) return null;
+    return n;
+  }
+
+  function escapeHtml(s){
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  /* =================== TREINO: LISTA =================== */
+  function renderStartList(){
+    var wrap = document.getElementById('start-list');
+    wrap.innerHTML = '';
+    if(state.groups.length===0){
+      wrap.innerHTML = '<div class="empty-hint">Cadastre seus grupos na aba Configurar.</div>';
+      return;
+    }
+    state.groups.forEach(function(g){
+      var card = document.createElement('div');
+      card.className = 'start-card';
+      var totalTime = g.exercises.reduce(function(acc,ex){
+        return acc + ex.series*ex.seriesTime + Math.max(0, ex.series-1)*ex.restTime;
+      },0);
+      card.innerHTML =
+        '<div class="letter">'+g.id+'</div>'+
+        '<div class="info"><div class="name">'+escapeHtml(g.name)+'</div>'+
+        '<div class="sub">'+g.exercises.length+' exercício'+(g.exercises.length===1?'':'s')+' · ~'+fmtTime(totalTime)+'</div></div>';
+      var btn = document.createElement('button');
+      btn.className = 'btn primary small';
+      btn.textContent = 'Iniciar';
+      btn.disabled = g.exercises.length===0;
+      btn.addEventListener('click', function(){ primeAudio(); startWorkout(g); });
+      card.appendChild(btn);
+      wrap.appendChild(card);
+    });
+  }
+
+  /* =================== MÓDULOS (sem cadastro) =================== */
+  function renderModuleList(){
+    var wrap = document.getElementById('module-list');
+    wrap.innerHTML = '';
+    var card = document.createElement('div');
+    card.className = 'start-card';
+    var totalTime = INCLINE_STEPS.length * INCLINE_STEP_SECONDS;
+    card.innerHTML =
+      '<div class="letter">⛰️</div>'+
+      '<div class="info"><div class="name">Esteira inclinada</div>'+
+      '<div class="sub">'+INCLINE_STEPS.length+' etapas · ~'+fmtTime(totalTime)+'</div></div>';
+    var btn = document.createElement('button');
+    btn.className = 'btn primary small';
+    btn.textContent = 'Iniciar';
+    btn.addEventListener('click', function(){ primeAudio(); startInclineModule(); });
+    card.appendChild(btn);
+    wrap.appendChild(card);
+  }
+
+  /* =================== HISTORICO =================== */
+  function pruneHistory(){
+    var cutoff = Date.now() - 30*24*60*60*1000;
+    state.history = state.history.filter(function(h){
+      return new Date(h.date+'T00:00:00').getTime() >= cutoff;
+    });
+    saveHistory();
+  }
+  function renderHistory(){
+    pruneHistory();
+    var listWrap = document.getElementById('hist-list');
+    var sumWrap = document.getElementById('hist-summary');
+    var sorted = state.history.slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+
+    var totalSeries=0, totalRest=0;
+    sorted.forEach(function(h){ totalSeries+=h.totalSeriesTime; totalRest+=h.totalRestTime; });
+
+    sumWrap.innerHTML =
+      '<div class="box"><b>'+sorted.length+'</b><span>treinos</span></div>'+
+      '<div class="box"><b>'+fmtTime(totalSeries)+'</b><span>em séries</span></div>'+
+      '<div class="box"><b>'+fmtTime(totalRest)+'</b><span>em descanso</span></div>';
+
+    listWrap.innerHTML = '';
+    if(sorted.length===0){
+      listWrap.innerHTML = '<div class="empty-hint">Nenhum treino registrado ainda. Complete um treino para começar seu histórico.</div>';
+      return;
+    }
+    sorted.forEach(function(h){
+      var row = document.createElement('div');
+      row.className = 'hist-item';
+      row.innerHTML =
+        '<div class="letter">'+h.groupId+'</div>'+
+        '<div class="info"><div class="date">'+fmtDatePt(h.date)+' · Grupo '+escapeHtml(h.groupName)+'</div>'+
+        '<div class="breakdown">séries '+fmtTime(h.totalSeriesTime)+' · descanso '+fmtTime(h.totalRestTime)+'</div></div>'+
+        '<div class="total">'+fmtTime(h.totalTime)+'</div>';
+      listWrap.appendChild(row);
+    });
+  }
+
+  /* =================== MOTOR DO TREINO =================== */
+  var PREP_SECONDS = 60;
+  var INCLINE_STEP_SECONDS = 120; // 2 minutos por etapa
+  var INCLINE_STEPS = [4,6,8,10,12,10,8,10,8,6]; // % de inclinação, na ordem
+  var engine = {
+    queue: [],
+    idx: -1,
+    phaseEndAt: 0,
+    remaining: 0,
+    paused: false,
+    pausedRemaining: 0,
+    lastTick: 0,
+    timerHandle: null,
+    group: null,
+    finishLabel: '',
+    totalSeriesTime: 0,
+    totalRestTime: 0
+  };
+
+  function buildQueue(group){
+    var q = [{ type:'prepare', duration: PREP_SECONDS }];
+    group.exercises.forEach(function(ex, exIdx){
+      for(var s=1; s<=ex.series; s++){
+        q.push({ type:'series', duration: ex.seriesTime, exName: ex.name, serieNum: s, totalSeries: ex.series });
+        var isVeryLast = (exIdx === group.exercises.length-1) && (s === ex.series);
+        if(!isVeryLast){
+          q.push({ type:'rest', duration: ex.restTime, exName: ex.name });
+        }
+      }
+    });
+    q.push({ type:'end', duration:0 });
+    return q;
+  }
+
+  // Fila fixa da esteira inclinada — não depende de cadastro, mesma lógica
+  // de fases/série que o restante do app (bipe, pausar, voltar).
+  function buildInclineQueue(){
+    var q = [{ type:'prepare', duration: PREP_SECONDS }];
+    INCLINE_STEPS.forEach(function(pct, i){
+      q.push({ type:'incline', duration: INCLINE_STEP_SECONDS, incline: pct, stepNum: i+1, totalSteps: INCLINE_STEPS.length });
+    });
+    q.push({ type:'end', duration:0 });
+    return q;
+  }
+
+  function beginSession(queue, tagText, finishLabel){
+    engine.queue = queue;
+    engine.idx = -1;
+    engine.totalSeriesTime = 0;
+    engine.totalRestTime = 0;
+    engine.paused = false;
+    engine.finishLabel = finishLabel;
+
+    sessionActive = true;
+    requestWake();
+
+    var planned = queue.reduce(function(a,p){
+      return a + ((p.type==='series'||p.type==='rest'||p.type==='incline') ? p.duration : 0);
+    },0);
+    document.getElementById('wo-total-plan').textContent = ' / ' + fmtTime(planned);
+    updateTotalDisplay();
+
+    document.getElementById('wo-group-tag').textContent = tagText;
+    document.getElementById('wo-running').style.display = 'flex';
+    document.querySelector('.wo-controls').style.display = 'flex';
+    document.getElementById('wo-finish').style.display = 'none';
+    document.getElementById('wo-pause').textContent = 'Pausar';
+    buildDots();
+    document.getElementById('workout-overlay').classList.add('active');
+
+    advancePhase();
+  }
+
+  function startWorkout(group){
+    engine.group = group;
+    beginSession(buildQueue(group), 'Grupo ' + group.name, 'Grupo ' + group.name + ' concluído');
+  }
+
+  function startInclineModule(){
+    engine.group = { id:'⛰️', name:'Esteira inclinada' };
+    beginSession(buildInclineQueue(), 'Esteira inclinada', 'Esteira inclinada concluída');
+  }
+
+  function buildDots(){
+    var wrap = document.getElementById('wo-dots');
+    wrap.innerHTML = '';
+    engine.queue.forEach(function(p){
+      if(p.type==='series' || p.type==='rest' || p.type==='incline'){
+        var d = document.createElement('div');
+        d.className = 'd';
+        wrap.appendChild(d);
+      }
+    });
+  }
+  function updateDots(){
+    var dots = document.querySelectorAll('#wo-dots .d');
+    var di = 0;
+    for(var i=0;i<engine.queue.length;i++){
+      var p = engine.queue[i];
+      if(p.type!=='series' && p.type!=='rest' && p.type!=='incline') continue;
+      if(i < engine.idx){
+        dots[di].className = 'd ' + (p.type==='rest' ? 'rest-done' : 'done');
+      }
+      di++;
+    }
+  }
+
+  function circleSetup(){
+    var circle = document.getElementById('ring-fg');
+    var r = 108, c = 2*Math.PI*r;
+    circle.setAttribute('stroke-dasharray', c.toFixed(1));
+    return c;
+  }
+  var RING_CIRC = 2*Math.PI*108;
+
+  function loadPhase(idx){
+    if(idx < 0) idx = 0;
+    engine.idx = idx;
+    var phase = engine.queue[engine.idx];
+
+    if(phase.type === 'end'){
+      finishWorkout();
+      return;
+    }
+
+    engine.remaining = phase.duration;
+    engine.phaseEndAt = Date.now() + phase.duration*1000;
+    engine.lastTick = Date.now();
+    updateDots();
+    renderPhaseUI(phase);
+    updateRing();
+    alertPhase(phase);
+
+    clearInterval(engine.timerHandle);
+    engine.timerHandle = setInterval(tick, 250);
+  }
+
+  function advancePhase(){
+    if(engine.idx+1 >= engine.queue.length) return;
+    loadPhase(engine.idx+1);
+  }
+
+  function previousPhase(){
+    // Já está no primeiro passo (preparação) — não há como voltar mais.
+    if(engine.idx <= 0) return;
+    loadPhase(engine.idx-1);
+  }
+
+  function renderPhaseUI(phase){
+    var label = document.getElementById('wo-phase-label');
+    var name = document.getElementById('wo-exercise-name');
+    var ringFg = document.getElementById('ring-fg');
+    var sub = document.getElementById('ring-sub');
+    var next = document.getElementById('wo-next');
+
+    ringFg.classList.remove('rest','prepare');
+    if(phase.type==='prepare'){
+      label.textContent = 'PREPARE-SE';
+      name.textContent = 'O treino começa em instantes';
+      sub.textContent = 'preparação';
+      ringFg.classList.add('prepare');
+    } else if(phase.type==='series'){
+      label.textContent = phase.serieNum + 'ª SÉRIE DE ' + phase.totalSeries;
+      name.textContent = phase.exName;
+      sub.textContent = 'execução';
+    } else if(phase.type==='rest'){
+      label.textContent = 'DESCANSO';
+      name.textContent = phase.exName;
+      sub.textContent = 'recuperação';
+      ringFg.classList.add('rest');
+    } else if(phase.type==='incline'){
+      label.textContent = 'ETAPA ' + phase.stepNum + ' DE ' + phase.totalSteps;
+      name.textContent = 'Inclinação ' + phase.incline + '%';
+      sub.textContent = 'esteira';
+    }
+
+    var upcoming = engine.queue[engine.idx+1];
+    if(upcoming && upcoming.type==='series'){
+      next.textContent = 'a seguir: ' + upcoming.serieNum + 'ª série de ' + upcoming.exName;
+    } else if(upcoming && upcoming.type==='rest'){
+      next.textContent = 'a seguir: descanso';
+    } else if(upcoming && upcoming.type==='incline'){
+      next.textContent = 'a seguir: inclinação ' + upcoming.incline + '%';
+    } else if(upcoming && upcoming.type==='end'){
+      next.textContent = 'último bloco — capricha!';
+    } else {
+      next.textContent = '';
+    }
+  }
+
+  function updateTotalDisplay(){
+    document.getElementById('wo-total-time').textContent = fmtTime(engine.totalSeriesTime + engine.totalRestTime);
+  }
+
+  function tick(){
+    var now = Date.now();
+    if(engine.paused){ engine.lastTick = now; return; }
+    var phase = engine.queue[engine.idx];
+    // Tempo realmente gasto desde o último tick (não conta a preparação nem pausas).
+    var spent = Math.max(0, Math.min(now, engine.phaseEndAt) - engine.lastTick)/1000;
+    engine.lastTick = now;
+    if(phase.type==='series' || phase.type==='incline') engine.totalSeriesTime += spent;
+    else if(phase.type==='rest') engine.totalRestTime += spent;
+    updateTotalDisplay();
+
+    var msLeft = engine.phaseEndAt - now;
+    var secLeft = Math.max(0, Math.round(msLeft/1000));
+    if(secLeft !== engine.remaining){
+      engine.remaining = secLeft;
+      updateRing();
+    }
+    if(msLeft <= 0){
+      clearInterval(engine.timerHandle);
+      advancePhase();
+    }
+  }
+
+  function updateRing(){
+    var phase = engine.queue[engine.idx];
+    var total = phase.duration || 1;
+    var frac = engine.remaining/total;
+    var ringFg = document.getElementById('ring-fg');
+    ringFg.setAttribute('stroke-dashoffset', (RING_CIRC*(1-frac)).toFixed(1));
+    document.getElementById('ring-time').textContent = fmtTime(engine.remaining);
+  }
+
+  document.getElementById('wo-back').addEventListener('click', function(){
+    previousPhase();
+  });
+  document.getElementById('wo-next-btn').addEventListener('click', function(){
+    // Pula para a próxima fase; na última, finaliza o treino.
+    clearInterval(engine.timerHandle);
+    advancePhase();
+  });
+
+  document.getElementById('wo-pause').addEventListener('click', function(){
+    engine.paused = !engine.paused;
+    this.textContent = engine.paused ? 'Continuar' : 'Pausar';
+    if(!engine.paused){
+      engine.phaseEndAt = Date.now() + engine.remaining*1000;
+      engine.lastTick = Date.now();
+    }
+  });
+
+  document.getElementById('wo-stop').addEventListener('click', function(){
+    if(confirm('Encerrar o treino agora? O progresso desse treino não será salvo no histórico.')){
+      clearInterval(engine.timerHandle);
+      sessionActive = false;
+      releaseWake();
+      document.getElementById('workout-overlay').classList.remove('active');
+    }
+  });
+  document.getElementById('wo-close').addEventListener('click', function(){
+    document.getElementById('wo-stop').click();
+  });
+
+  function finishWorkout(){
+    sessionActive = false;
+    releaseWake();
+    document.getElementById('wo-running').style.display = 'none';
+    document.querySelector('.wo-controls').style.display = 'none';
+    var fin = document.getElementById('wo-finish');
+    fin.style.display = 'flex';
+    document.getElementById('wo-finish-sub').textContent = engine.finishLabel;
+    document.getElementById('fin-series').textContent = fmtTime(engine.totalSeriesTime);
+    document.getElementById('fin-rest').textContent = fmtTime(engine.totalRestTime);
+    document.getElementById('fin-total').textContent = fmtTime(engine.totalSeriesTime+engine.totalRestTime);
+
+    state.history.push({
+      date: todayISO(),
+      groupId: engine.group.id,
+      groupName: engine.group.name,
+      totalSeriesTime: Math.round(engine.totalSeriesTime),
+      totalRestTime: Math.round(engine.totalRestTime),
+      totalTime: Math.round(engine.totalSeriesTime) + Math.round(engine.totalRestTime)
+    });
+    saveHistory();
+  }
+
+  document.getElementById('wo-done').addEventListener('click', function(){
+    document.getElementById('workout-overlay').classList.remove('active');
+    goTab('historico');
+  });
+
+  /* =================== AUDIO =================== */
+  // Somente bipes curtos (sem síntese de voz). A voz (speechSynthesis) pede
+  // "foco de áudio" ao celular, e é isso que faz o YouTube abaixar o volume.
+  // Aqui o contexto de áudio é suspenso logo após cada bipe, para o celular
+  // devolver o volume normal ao vídeo entre um alerta e outro.
+  var audioCtx = null;
+  var suspendHandle = null;
+  try{
+    // iOS 16.4+: trata o som do app como "ambiente", mixando com outros apps.
+    if(navigator.audioSession) navigator.audioSession.type = 'ambient';
+  }catch(e){}
+
+  function getCtx(){
+    if(!audioCtx){
+      try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ audioCtx = null; }
+    }
+    return audioCtx;
+  }
+  // Chamado no toque em "Iniciar" para liberar o áudio do navegador (sem som).
+  function primeAudio(){
+    var ctx = getCtx();
+    if(!ctx) return;
+    try{
+      if(ctx.state === 'suspended') ctx.resume();
+      var b = ctx.createBuffer(1, 1, 22050);
+      var s = ctx.createBufferSource();
+      s.buffer = b; s.connect(ctx.destination); s.start(0);
+    }catch(e){}
+    scheduleSuspend(300);
+    primeSpeech();
+  }
+  // Libera a síntese de voz no toque do usuário (exigência de alguns celulares).
+  function primeSpeech(){
+    if(!voiceOn || !('speechSynthesis' in window)) return;
+    try{
+      var u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0;
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+  function scheduleSuspend(ms){
+    clearTimeout(suspendHandle);
+    suspendHandle = setTimeout(function(){
+      try{ if(audioCtx && audioCtx.state === 'running') audioCtx.suspend(); }catch(e){}
+    }, ms);
+  }
+  // pattern: lista de {f: frequência, d: duração em ms, gap: pausa depois em ms}
+  function playPattern(pattern){
+    var ctx = getCtx();
+    if(!ctx) return;
+    clearTimeout(suspendHandle);
+    function run(){
+      var t = ctx.currentTime + 0.03;
+      pattern.forEach(function(n){
+        var dur = n.d/1000;
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = n.f;
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(0.35, t+0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t+dur+0.02);
+        t += dur + (n.gap||0)/1000;
+      });
+      var totalMs = pattern.reduce(function(a,n){ return a + n.d + (n.gap||0); }, 0);
+      scheduleSuspend(totalMs + 350);
+    }
+    if(ctx.state === 'suspended'){
+      ctx.resume().then(run).catch(run);
+    } else {
+      run();
+    }
+  }
+  /* ---- Tela sempre acesa (Wake Lock) ---- */
+  var wakeLock = null;
+  var sessionActive = false;
+  function requestWake(){
+    try{
+      if(!('wakeLock' in navigator)) return;
+      navigator.wakeLock.request('screen').then(function(l){
+        wakeLock = l;
+        l.addEventListener('release', function(){ if(wakeLock === l) wakeLock = null; });
+      }).catch(function(){});
+    }catch(e){}
+  }
+  function releaseWake(){
+    try{ if(wakeLock){ wakeLock.release(); } }catch(e){}
+    wakeLock = null;
+  }
+  // O navegador solta o Wake Lock ao sair do app/aba; pede de novo ao voltar.
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'visible' && sessionActive && !wakeLock) requestWake();
+  });
+
+  /* ---- Aviso visual de início de fase ---- */
+  var bannerHandle = null;
+  function showBanner(phase){
+    var el = document.getElementById('wo-banner');
+    var l1 = '', l2 = '', cls = 'series';
+    if(phase.type === 'prepare'){
+      cls = 'prepare'; l1 = 'PREPARE-SE'; l2 = 'O treino começa em 1 minuto';
+    } else if(phase.type === 'series'){
+      l1 = phase.serieNum + 'ª SÉRIE DE ' + phase.totalSeries; l2 = phase.exName;
+    } else if(phase.type === 'rest'){
+      cls = 'rest'; l1 = 'DESCANSO'; l2 = phase.exName;
+    } else if(phase.type === 'incline'){
+      l1 = 'ETAPA ' + phase.stepNum + ' DE ' + phase.totalSteps; l2 = 'Inclinação ' + phase.incline + '%';
+    }
+    document.getElementById('wo-banner-1').textContent = l1;
+    document.getElementById('wo-banner-2').textContent = l2;
+    el.className = 'wo-banner ' + cls + ' show';
+    clearTimeout(bannerHandle);
+    bannerHandle = setTimeout(function(){ el.classList.remove('show'); }, 3000);
+  }
+
+  /* ---- Voz (opcional, desligada por padrão) ---- */
+  // Ligada por padrão. O celular abaixa o YouTube só enquanto a voz fala
+  // (frases curtas); o botão "Voz" permite desligar.
+  var VOICE_KEY = 'ferro_voice_v1';
+  var voiceOn = true;
+  try{ if(localStorage.getItem(VOICE_KEY) === '0') voiceOn = false; }catch(e){}
+  function speak(text){
+    if(!voiceOn || !('speechSynthesis' in window)) return;
+    try{
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = 'pt-BR';
+      u.rate = 1;
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+  function phaseSpeech(phase){
+    if(phase.type === 'prepare') return 'Prepare-se. O treino começa em 1 minuto.';
+    if(phase.type === 'series') return 'Série ' + phase.serieNum + ' de ' + phase.totalSeries + ', ' + phase.exName;
+    if(phase.type === 'rest') return 'Descanso';
+    if(phase.type === 'incline') return 'Etapa ' + phase.stepNum + ' de ' + phase.totalSteps + ', inclinação ' + phase.incline + ' por cento';
+    return '';
+  }
+  function updateVoiceBtn(){
+    document.getElementById('wo-voice').textContent = voiceOn ? '🔊 Voz: ligada' : '🔇 Voz: desligada';
+  }
+  document.getElementById('wo-voice').addEventListener('click', function(){
+    voiceOn = !voiceOn;
+    try{ localStorage.setItem(VOICE_KEY, voiceOn ? '1' : '0'); }catch(e){}
+    if(!voiceOn){ try{ window.speechSynthesis.cancel(); }catch(e){} }
+    updateVoiceBtn();
+    primeSpeech();
+    showToast(voiceOn ? 'Voz ligada' : 'Voz desligada');
+  });
+
+  // Alertas: início de série/etapa = 2 bipes agudos; início do descanso = 1 bipe grave.
+  // Preparação fica sem bipe. Todo início de fase mostra o aviso na tela.
+  function alertPhase(phase){
+    showBanner(phase);
+    if(phase.type==='series' || phase.type==='incline'){
+      playPattern([{f:800,d:150,gap:110},{f:800,d:150}]);
+    } else if(phase.type==='rest'){
+      playPattern([{f:500,d:300}]);
+    }
+    var t = phaseSpeech(phase);
+    if(t && voiceOn) setTimeout(function(){ speak(t); }, 500);
+  }
+
+  /* =================== INIT =================== */
+  renderPlanRow();
+  renderGroupsList();
+  circleSetup();
+  updateVoiceBtn();
+})();
+</script>
+</body>
+</html>
