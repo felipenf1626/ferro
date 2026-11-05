@@ -329,6 +329,34 @@
   .wo-banner.prepare{background:var(--prepare);color:#241A00;}
   .voice-toggle{margin-top:14px;}
 
+  /* Vídeo do exercício */
+  .wo-video-btn{margin:-14px 0 18px;}
+  .ex-row .ex-info .d .vid{color:var(--effort);}
+  /* Fica no topo, sobre o anel; os botões Voltar/Pausar/Avançar seguem livres. */
+  .video-sheet{
+    position:absolute;left:12px;right:12px;top:calc(58px + env(safe-area-inset-top));z-index:70;
+    background:var(--steel);border:1px solid var(--steel-3);
+    border-radius:var(--radius-l);padding:14px;
+    opacity:0;transform:translateY(-12px);pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease;
+    box-shadow:0 12px 30px rgba(0,0,0,.55);
+  }
+  .video-sheet.show{opacity:1;transform:translateY(0);pointer-events:auto;}
+  .video-sheet .vs-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .video-sheet .vs-title{flex:1;min-width:0;}
+  .video-sheet .vs-title .t1{font-size:11px;color:var(--mute);font-weight:700;letter-spacing:.03em;}
+  .video-sheet .vs-title .t2{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .video-sheet .vs-time{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--effort);}
+  .video-sheet .vs-time.rest{color:var(--recover);}
+  .video-sheet .vs-time.prepare{color:var(--prepare);}
+  .video-frame{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:var(--radius-m);overflow:hidden;}
+  .video-frame iframe,.video-frame video{position:absolute;inset:0;width:100%;height:100%;border:0;}
+  .video-empty{
+    background:var(--steel-2);border-radius:var(--radius-m);padding:18px 14px;
+    text-align:center;color:var(--mute);font-size:13px;
+  }
+  .video-empty .btn{margin-top:12px;}
+
   ::-webkit-scrollbar{width:0;}
 </style>
 </head>
@@ -386,6 +414,7 @@
     <div class="wo-center" id="wo-running">
       <div class="wo-phase-label" id="wo-phase-label">PREPARE-SE</div>
       <div class="wo-exercise-name" id="wo-exercise-name">O treino começa em instantes</div>
+      <button class="btn ghost small wo-video-btn" id="wo-video-btn">▶ Ver vídeo</button>
 
       <div class="ring-wrap">
         <svg viewBox="0 0 250 250">
@@ -409,6 +438,15 @@
       <button class="btn ghost" id="wo-pause">Pausar</button>
       <button class="btn ghost" id="wo-next-btn">Avançar ›</button>
       <button class="btn danger" id="wo-stop">Encerrar</button>
+    </div>
+
+    <div class="video-sheet" id="video-sheet">
+      <div class="vs-head">
+        <div class="vs-title"><div class="t1" id="vs-t1">VÍDEO</div><div class="t2" id="vs-t2"></div></div>
+        <div class="vs-time" id="vs-time">0:00</div>
+        <button class="wo-close" id="vs-close" aria-label="Fechar vídeo">✕</button>
+      </div>
+      <div id="vs-body"></div>
     </div>
 
     <div class="wo-finish" id="wo-finish" style="display:none;">
@@ -646,7 +684,7 @@ if('serviceWorker' in navigator && location.protocol !== 'file:'){
         row.className = 'ex-row';
         row.innerHTML =
           '<div class="ex-info"><div class="n">'+escapeHtml(ex.name)+'</div>'+
-          '<div class="d">'+ex.series+'x séries · '+fmtTime(ex.seriesTime)+' série · '+fmtTime(ex.restTime)+' descanso</div></div>'+
+          '<div class="d">'+ex.series+'x séries · '+fmtTime(ex.seriesTime)+' série · '+fmtTime(ex.restTime)+' descanso'+(ex.video?' · <span class="vid">▶ vídeo</span>':'')+'</div></div>'+
           '<div class="ex-actions">'+
             (idx>0?'<button class="icon-btn" data-act="up">↑</button>':'')+
             (idx<g.exercises.length-1?'<button class="icon-btn" data-act="down">↓</button>':'')+
@@ -703,6 +741,9 @@ if('serviceWorker' in navigator && location.protocol !== 'file:'){
         '<div class="field"><label>Duração da série (mm:ss)</label><input type="text" name="seriesTime" placeholder="0:30" required></div>'+
         '<div class="field"><label>Descanso (mm:ss)</label><input type="text" name="restTime" placeholder="1:00" required></div>'+
       '</div>'+
+      '<div class="field-row">'+
+        '<div class="field"><label>Vídeo (link do YouTube ou de um arquivo .mp4 — opcional)</label><input type="url" name="video" placeholder="https://youtu.be/..."></div>'+
+      '</div>'+
       '<div class="form-actions">'+
         '<button type="submit" class="btn primary small">'+(existing?'Salvar':'Adicionar')+'</button>'+
         '<button type="button" class="btn ghost small" data-act="cancel">Cancelar</button>'+
@@ -713,6 +754,7 @@ if('serviceWorker' in navigator && location.protocol !== 'file:'){
       form.series.value = existing.series;
       form.seriesTime.value = fmtTime(existing.seriesTime);
       form.restTime.value = fmtTime(existing.restTime);
+      form.video.value = existing.video || '';
     }
 
     form.querySelector('[data-act="cancel"]').addEventListener('click', function(){
@@ -726,14 +768,16 @@ if('serviceWorker' in navigator && location.protocol !== 'file:'){
       var series = parseInt(form.series.value,10);
       var seriesTime = parseMMSS(form.seriesTime.value);
       var restTime = parseMMSS(form.restTime.value);
+      var video = (form.video.value||'').trim();
+      if(video && !/^https?:\/\//i.test(video)) video = 'https://' + video;
       if(!name || !series || series<1 || seriesTime===null || restTime===null){
         showToast('Verifique os campos (use mm:ss para os tempos).');
         return;
       }
       if(existing){
-        existing.name=name; existing.series=series; existing.seriesTime=seriesTime; existing.restTime=restTime;
+        existing.name=name; existing.series=series; existing.seriesTime=seriesTime; existing.restTime=restTime; existing.video=video;
       } else {
-        group.exercises.push({ id: uid(), name:name, series:series, seriesTime:seriesTime, restTime:restTime });
+        group.exercises.push({ id: uid(), name:name, series:series, seriesTime:seriesTime, restTime:restTime, video:video });
       }
       saveGroups();
       state.editingExercise = null;
@@ -872,7 +916,7 @@ if('serviceWorker' in navigator && location.protocol !== 'file:'){
     var q = [{ type:'prepare', duration: PREP_SECONDS }];
     group.exercises.forEach(function(ex, exIdx){
       for(var s=1; s<=ex.series; s++){
-        q.push({ type:'series', duration: ex.seriesTime, exName: ex.name, serieNum: s, totalSeries: ex.series });
+        q.push({ type:'series', duration: ex.seriesTime, exName: ex.name, video: ex.video||'', serieNum: s, totalSeries: ex.series });
         var isVeryLast = (exIdx === group.exercises.length-1) && (s === ex.series);
         if(!isVeryLast){
           q.push({ type:'rest', duration: ex.restTime, exName: ex.name });
@@ -997,6 +1041,81 @@ if('serviceWorker' in navigator && location.protocol !== 'file:'){
     loadPhase(engine.idx-1);
   }
 
+  /* =================== VÍDEO DO EXERCÍCIO =================== */
+  // Exercício a que o vídeo se refere: o da série atual; no descanso e na
+  // preparação, o da próxima série (é o que a pessoa vai executar a seguir).
+  function videoTargetFor(idx){
+    for(var i=Math.max(idx,0); i<engine.queue.length; i++){
+      if(engine.queue[i].type==='series') return engine.queue[i];
+    }
+    return null;
+  }
+  function youtubeId(url){
+    var m = String(url).match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/|v\/))([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
+  var videoSheetOpen = false, videoShownFor = null;
+  function renderVideoBody(target){
+    var body = document.getElementById('vs-body');
+    body.innerHTML = '';
+    if(!target){ return; }
+    var url = target.video, ytid = url ? youtubeId(url) : null;
+    if(url && ytid){
+      var wrap = document.createElement('div'); wrap.className = 'video-frame';
+      var f = document.createElement('iframe');
+      f.src = 'https://www.youtube-nocookie.com/embed/' + ytid + '?autoplay=1&mute=1&loop=1&playlist=' + ytid + '&playsinline=1&rel=0&modestbranding=1';
+      f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+      f.setAttribute('allowfullscreen','');
+      f.referrerPolicy = 'strict-origin-when-cross-origin';
+      wrap.appendChild(f); body.appendChild(wrap);
+    } else if(url){
+      var w2 = document.createElement('div'); w2.className = 'video-frame';
+      var v = document.createElement('video');
+      v.src = url; v.muted = true; v.loop = true; v.autoplay = true; v.controls = true;
+      v.setAttribute('playsinline','');
+      w2.appendChild(v); body.appendChild(w2);
+    } else {
+      var e = document.createElement('div'); e.className = 'video-empty';
+      e.innerHTML = 'Nenhum vídeo cadastrado para este exercício.<br>Cole um link em Configurar › editar exercício.';
+      var a = document.createElement('a');
+      a.className = 'btn small block'; a.target = '_blank'; a.rel = 'noopener';
+      a.style.display = 'block'; a.style.textDecoration = 'none';
+      a.href = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(target.exName + ' execução');
+      a.textContent = 'Buscar no YouTube';
+      e.appendChild(a); body.appendChild(e);
+    }
+    if(!navigator.onLine && url){
+      var off = document.createElement('div'); off.className = 'video-empty'; off.style.marginTop = '8px';
+      off.textContent = 'Sem internet: o vídeo precisa de conexão para carregar.';
+      body.appendChild(off);
+    }
+  }
+  function refreshVideoSheet(){
+    var target = videoTargetFor(engine.idx);
+    var phase = engine.queue[engine.idx] || {};
+    document.getElementById('vs-t1').textContent =
+      phase.type==='series' ? 'EXECUTANDO AGORA' : 'PRÓXIMO EXERCÍCIO';
+    document.getElementById('vs-t2').textContent = target ? target.exName : '';
+    var t = document.getElementById('vs-time');
+    t.className = 'vs-time' + (phase.type==='rest' ? ' rest' : phase.type==='prepare' ? ' prepare' : '');
+    // Só recarrega o vídeo quando muda de exercício (não a cada série).
+    var key = target ? target.exName + '|' + target.video : null;
+    if(key !== videoShownFor){ videoShownFor = key; renderVideoBody(target); }
+  }
+  function openVideo(){
+    videoSheetOpen = true; videoShownFor = null;
+    refreshVideoSheet();
+    document.getElementById('vs-time').textContent = fmtTime(engine.remaining);
+    document.getElementById('video-sheet').classList.add('show');
+  }
+  function closeVideo(){
+    videoSheetOpen = false; videoShownFor = null;
+    document.getElementById('video-sheet').classList.remove('show');
+    document.getElementById('vs-body').innerHTML = ''; // para o vídeo
+  }
+  document.getElementById('wo-video-btn').addEventListener('click', openVideo);
+  document.getElementById('vs-close').addEventListener('click', closeVideo);
+
   function renderPhaseUI(phase){
     var label = document.getElementById('wo-phase-label');
     var name = document.getElementById('wo-exercise-name');
@@ -1024,6 +1143,12 @@ if('serviceWorker' in navigator && location.protocol !== 'file:'){
       name.textContent = 'Inclinação ' + phase.incline + '%';
       sub.textContent = 'esteira';
     }
+
+    var vt = videoTargetFor(engine.idx);
+    var vbtn = document.getElementById('wo-video-btn');
+    vbtn.style.display = (phase.type==='incline' || !vt) ? 'none' : '';
+    vbtn.textContent = (vt && vt.video ? '▶ Ver vídeo' : '▶ Vídeo') + (phase.type==='series' ? '' : ' do próximo');
+    if(videoSheetOpen){ if(phase.type==='incline' || !vt) closeVideo(); else refreshVideoSheet(); }
 
     var upcoming = engine.queue[engine.idx+1];
     if(upcoming && upcoming.type==='series'){
@@ -1073,6 +1198,7 @@ if('serviceWorker' in navigator && location.protocol !== 'file:'){
     var ringFg = document.getElementById('ring-fg');
     ringFg.setAttribute('stroke-dashoffset', (RING_CIRC*(1-frac)).toFixed(1));
     document.getElementById('ring-time').textContent = fmtTime(engine.remaining);
+    if(videoSheetOpen) document.getElementById('vs-time').textContent = fmtTime(engine.remaining);
   }
 
   document.getElementById('wo-back').addEventListener('click', function(){
@@ -1096,6 +1222,7 @@ if('serviceWorker' in navigator && location.protocol !== 'file:'){
   document.getElementById('wo-stop').addEventListener('click', function(){
     if(confirm('Encerrar o treino agora? O progresso desse treino não será salvo no histórico.')){
       clearInterval(engine.timerHandle);
+      closeVideo();
       sessionActive = false;
       releaseWake();
       document.getElementById('workout-overlay').classList.remove('active');
@@ -1106,6 +1233,7 @@ if('serviceWorker' in navigator && location.protocol !== 'file:'){
   });
 
   function finishWorkout(){
+    closeVideo();
     sessionActive = false;
     releaseWake();
     document.getElementById('wo-running').style.display = 'none';

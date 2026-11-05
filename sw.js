@@ -1,6 +1,6 @@
 // Service worker do Ferro: guarda o app no aparelho para abrir sem internet.
 // Ao publicar uma versão nova, aumente o número em CACHE.
-var CACHE = 'ferro-v1';
+var CACHE = 'ferro-v2';
 var FILES = ['./', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
